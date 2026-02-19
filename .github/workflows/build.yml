@@ -3,7 +3,7 @@ name: Build and Release
 on:
   push:
     branches:
-      - main
+      # - main
     tags:
       - 'v*'
   workflow_dispatch:
@@ -63,6 +63,12 @@ jobs:
         run: |
           cd build/bin
           Compress-Archive -Path WinCleaner.exe -DestinationPath ../../WinCleaner-windows-amd64.zip
+        shell: pwsh
+
+      - name: Download Inno Setup Chinese language file
+        run: |
+          $issDir = "C:\Program Files (x86)\Inno Setup 6\Languages"
+          Invoke-WebRequest -Uri "https://raw.githubusercontent.com/jrsoftware/issrc/main/Files/Languages/Unofficial/ChineseSimplified.isl" -OutFile "$issDir\ChineseSimplified.isl"
         shell: pwsh
 
       - name: Build Installer with Inno Setup
