@@ -1,0 +1,135 @@
+name: Build and Release
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Wails
+        run: go install github.com/wailsapp/wails/v2/cmd/wails@latest
+
+      - name: Install frontend dependencies
+        run: |
+          cd frontend
+          npm install
+
+      - name: Setup application icon
+        run: |
+          Copy-Item "favicon_io/favicon.ico" "build/windows/icon.ico" -Force
+          Copy-Item "favicon_io/android-chrome-512x512.png" "build/appicon.png" -Force
+        shell: pwsh
+
+      - name: Get version from tag
+        id: get_version
+        shell: bash
+        run: |
+          if [[ $GITHUB_REF == refs/tags/* ]]; then
+            echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+          else
+            echo "VERSION=dev" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Build Windows application
+        run: |
+          $env:GIT_COMMIT = git rev-parse --short HEAD
+          wails build -platform windows/amd64 -ldflags "-X main.GitCommit=$env:GIT_COMMIT"
+        shell: pwsh
+
+      - name: Create Windows ZIP
+        run: |
+          cd build/bin
+          Compress-Archive -Path WinCleaner.exe -DestinationPath ../../WinCleaner-windows-amd64.zip
+        shell: pwsh
+
+      - name: Build Installer with Inno Setup
+        run: |
+          iscc /DMyAppVersion="${{ steps.get_version.outputs.VERSION }}" build/installer.iss
+        shell: cmd
+
+      - name: Upload Windows artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-build-${{ github.sha }}
+          path: |
+            WinCleaner-windows-amd64.zip
+            WinCleaner-Setup-*.exe
+          retention-days: 5
+
+  release:
+    needs: [build-windows]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Get version from tag
+        id: get_version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+
+      - name: Download Windows artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-build-${{ github.sha }}
+          path: artifacts
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          name: Win Cleaner v${{ steps.get_version.outputs.VERSION }}
+          body: |
+            ## 🧹 Win Cleaner v${{ steps.get_version.outputs.VERSION }}
+            
+            Windows 系统垃圾清理与优化工具
+            
+            ### ✨ 功能特性
+            
+            - 🧹 **垃圾清理**: 扫描并清理 7 类系统垃圾（临时文件、更新缓存、缩略图、日志、浏览器缓存、回收站、预读取）
+            - 🧠 **内存优化**: 一键收缩进程工作集，释放物理内存
+            - 📊 **系统概览**: CPU、内存、磁盘使用率，显卡信息检测
+            - 📋 **进程管理**: 查看进程列表，按 CPU/内存排序，支持结束进程
+            - 🌐 **流量监控**: 实时网速、进程网络使用、历史流量统计图表
+            - 💾 **磁盘管理**: 分区空间概览、大文件扫描
+            - 📈 **历史图表**: 清理记录、优化记录、流量统计的可视化图表
+            
+            ### 💾 下载
+            
+            - `WinCleaner-Setup-*.exe` - 安装程序（推荐，含桌面快捷方式和卸载）
+            - `WinCleaner-windows-amd64.zip` - 免安装版，解压即用
+            
+            ### 📝 技术栈
+            
+            - Wails v2 (Go + Vue3 + Element Plus + ECharts)
+            - 纯本地运行，不上传任何数据
+          files: |
+            artifacts/*
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
