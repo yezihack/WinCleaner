@@ -225,18 +225,20 @@ html, body, #app {
   border-right: 1px solid #2d3d4a;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
 
 .app-aside .el-menu {
   flex: 1;
   border-right: none;
+  overflow: hidden;
 }
 
 .logo {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 20px 16px;
+  padding: 14px 16px;
   color: #409eff;
   font-size: 18px;
   font-weight: bold;
@@ -287,7 +289,7 @@ html, body, #app {
 
 /* 实时状态栏 */
 .realtime-bar {
-  padding: 12px 16px;
+  padding: 8px 16px;
   border-top: 1px solid #2d3d4a;
   background-color: #162029;
 }
@@ -337,12 +339,12 @@ html, body, #app {
 .quick-opt {
   display: flex;
   justify-content: center;
-  padding: 12px 0;
+  padding: 8px 0;
 }
 
 .opt-btn {
-  width: 72px;
-  height: 72px;
+  width: 64px;
+  height: 64px;
   border-radius: 50%;
   background: linear-gradient(135deg, #409eff 0%, #67c23a 100%);
   display: flex;
