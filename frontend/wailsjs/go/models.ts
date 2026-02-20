@@ -634,6 +634,26 @@ export namespace model {
 	        this.ip_operator = source["ip_operator"];
 	    }
 	}
+	export class UpdateInfo {
+	    current_version: string;
+	    latest_version: string;
+	    has_update: boolean;
+	    release_url: string;
+	    release_notes: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new UpdateInfo(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.current_version = source["current_version"];
+	        this.latest_version = source["latest_version"];
+	        this.has_update = source["has_update"];
+	        this.release_url = source["release_url"];
+	        this.release_notes = source["release_notes"];
+	    }
+	}
 
 }
 

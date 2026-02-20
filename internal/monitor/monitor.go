@@ -1,11 +1,11 @@
 package monitor
 
 import (
+	"encoding/json"
 	"io"
 	"net/http"
 	"os"
 	"runtime"
-	"strings"
 	"sync"
 	"time"
 
@@ -79,14 +79,9 @@ func getPublicIPInfo() (string, string, string) {
 		return cachedIP, cachedLocation, cachedOperator
 	}
 
+	// 使用 ip-api.com JSON 接口（免费、稳定、支持中文）
 	client := &http.Client{Timeout: 5 * time.Second}
-	req, err := http.NewRequest("GET", "http://www.cip.cc", nil)
-	if err != nil {
-		return cachedIP, cachedLocation, cachedOperator
-	}
-	req.Header.Set("User-Agent", "curl/7.0")
-
-	resp, err := client.Do(req)
+	resp, err := client.Get("http://ip-api.com/json/?lang=zh-CN&fields=query,country,regionName,city,isp")
 	if err != nil {
 		return cachedIP, cachedLocation, cachedOperator
 	}
@@ -97,19 +92,23 @@ func getPublicIPInfo() (string, string, string) {
 		return cachedIP, cachedLocation, cachedOperator
 	}
 
-	// 解析 cip.cc 返回格式
-	lines := strings.Split(string(body), "\n")
-	for _, line := range lines {
-		line = strings.TrimSpace(line)
-		if strings.HasPrefix(line, "IP") {
-			cachedIP = strings.TrimSpace(strings.SplitN(line, ":", 2)[1])
-		} else if strings.HasPrefix(line, "地址") {
-			cachedLocation = strings.TrimSpace(strings.SplitN(line, ":", 2)[1])
-		} else if strings.HasPrefix(line, "运营商") {
-			cachedOperator = strings.TrimSpace(strings.SplitN(line, ":", 2)[1])
-		}
+	var result struct {
+		Query      string `json:"query"`
+		Country    string `json:"country"`
+		RegionName string `json:"regionName"`
+		City       string `json:"city"`
+		ISP        string `json:"isp"`
 	}
-	ipCacheTime = time.Now()
+	if err := json.Unmarshal(body, &result); err != nil {
+		return cachedIP, cachedLocation, cachedOperator
+	}
+
+	if result.Query != "" {
+		cachedIP = result.Query
+		cachedLocation = result.Country + " " + result.RegionName + " " + result.City
+		cachedOperator = result.ISP
+		ipCacheTime = time.Now()
+	}
 
 	return cachedIP, cachedLocation, cachedOperator
 }

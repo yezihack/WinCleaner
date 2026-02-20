@@ -2,6 +2,10 @@ package app
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"strings"
 	"time"
 
 	"win-cleaner/internal/cleaner"
@@ -9,6 +13,9 @@ import (
 	"win-cleaner/internal/model"
 	"win-cleaner/internal/monitor"
 )
+
+// AppVersion 当前应用版本（构建时通过 -ldflags 注入，默认 dev）
+var AppVersion = "0.1.1"
 
 // App Wails 应用主结构
 type App struct {
@@ -146,4 +153,48 @@ func (a *App) ScanLargeFiles(root string, minSizeMB int64) *model.DiskScanResult
 // GetMemOptStats 获取内存优化历史统计
 func (a *App) GetMemOptStats() (*model.MemOptStats, error) {
 	return memory.GetMemOptStats()
+}
+
+// GetAppVersion 获取当前应用版本
+func (a *App) GetAppVersion() string {
+	return AppVersion
+}
+
+// CheckUpdate 检查 GitHub Releases 是否有新版本
+func (a *App) CheckUpdate() (*model.UpdateInfo, error) {
+	info := &model.UpdateInfo{
+		CurrentVersion: AppVersion,
+		HasUpdate:      false,
+	}
+
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Get("https://api.github.com/repos/yezihack/WinCleaner/releases/latest")
+	if err != nil {
+		return info, fmt.Errorf("请求 GitHub 失败: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return info, fmt.Errorf("GitHub API 返回 %d", resp.StatusCode)
+	}
+
+	var release struct {
+		TagName string `json:"tag_name"`
+		HTMLURL string `json:"html_url"`
+		Body    string `json:"body"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&release); err != nil {
+		return info, fmt.Errorf("解析响应失败: %w", err)
+	}
+
+	latest := strings.TrimPrefix(release.TagName, "v")
+	info.LatestVersion = latest
+	info.ReleaseURL = release.HTMLURL
+	info.ReleaseNotes = release.Body
+
+	if latest != "" && latest != AppVersion {
+		info.HasUpdate = true
+	}
+
+	return info, nil
 }

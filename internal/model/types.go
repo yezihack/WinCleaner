@@ -236,6 +236,15 @@ type MemOptMonthlyStat struct {
 	Count   int     `json:"count"`
 }
 
+// UpdateInfo 版本更新信息
+type UpdateInfo struct {
+	CurrentVersion string `json:"current_version"`
+	LatestVersion  string `json:"latest_version"`
+	HasUpdate      bool   `json:"has_update"`
+	ReleaseURL     string `json:"release_url"`
+	ReleaseNotes   string `json:"release_notes"`
+}
+
 // MemOptStats 内存优化历史统计
 type MemOptStats struct {
 	RecentRecords []MemOptRecord      `json:"recent_records"`

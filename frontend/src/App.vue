@@ -50,6 +50,18 @@
         </div>
       </div>
 
+      <!-- 版本 & GitHub -->
+      <div class="app-footer">
+        <span class="app-version" :title="updateTip" :class="{ 'has-update': hasUpdate }" @click="handleVersionClick">
+          v{{ appVersion }}{{ hasUpdate ? ' ⬆' : '' }}
+        </span>
+        <a class="github-link" href="https://github.com/yezihack/WinCleaner" target="_blank" title="GitHub">
+          <svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor">
+            <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/>
+          </svg>
+        </a>
+      </div>
+
       <!-- 左下角实时状态 -->
       <div class="realtime-bar">
         <div class="rt-item">
@@ -88,11 +100,16 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElNotification } from 'element-plus'
 import { api, type RealtimeStats } from '@/api/backend'
 
 const route = useRoute()
 const optimizing = ref(false)
+const appVersion = ref('1.0.0')
+const hasUpdate = ref(false)
+const latestVersion = ref('')
+const releaseURL = ref('')
+const updateTip = ref('')
 
 const stats = reactive<RealtimeStats>({
   cpu_percent: 0,
@@ -137,9 +154,49 @@ const handleQuickOptimize = async () => {
   }
 }
 
+const handleVersionClick = () => {
+  if (hasUpdate.value && releaseURL.value) {
+    window.open(releaseURL.value, '_blank')
+  }
+}
+
+const checkAppVersion = async () => {
+  try {
+    appVersion.value = await api.getAppVersion()
+  } catch { /* silent */ }
+}
+
+const checkUpdate = async () => {
+  try {
+    const info = await api.checkUpdate()
+    appVersion.value = info.current_version
+    if (info.has_update) {
+      hasUpdate.value = true
+      latestVersion.value = info.latest_version
+      releaseURL.value = info.release_url
+      updateTip.value = `发现新版本 v${info.latest_version}，点击前往下载`
+      ElNotification({
+        title: '发现新版本',
+        message: `v${info.current_version} → v${info.latest_version}，点击查看更新`,
+        type: 'warning',
+        duration: 0,
+        onClick: () => {
+          window.open(info.release_url, '_blank')
+        },
+      })
+    } else {
+      updateTip.value = '已是最新版本'
+    }
+  } catch {
+    // 网络不通时静默
+  }
+}
+
 onMounted(() => {
   fetchStats()
   timer = setInterval(fetchStats, 2000)
+  checkAppVersion()
+  checkUpdate()
 })
 
 onUnmounted(() => {
@@ -189,6 +246,43 @@ html, body, #app {
   background-color: #f0f2f5;
   padding: 20px;
   overflow-y: auto;
+}
+
+/* 版本 & GitHub */
+.app-footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 6px 16px;
+  border-top: 1px solid #2d3d4a;
+}
+
+.app-version {
+  font-size: 11px;
+  color: #6b7d8e;
+}
+
+.app-version.has-update {
+  color: #e6a23c;
+  cursor: pointer;
+  animation: blink 2s ease-in-out infinite;
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.github-link {
+  color: #8899a6;
+  transition: color 0.2s;
+  display: flex;
+  align-items: center;
+}
+
+.github-link:hover {
+  color: #fff;
 }
 
 /* 实时状态栏 */

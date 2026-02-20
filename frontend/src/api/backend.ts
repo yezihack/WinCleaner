@@ -191,6 +191,14 @@ export interface MemOptStats {
   total_count: number
 }
 
+export interface UpdateInfo {
+  current_version: string
+  latest_version: string
+  has_update: boolean
+  release_url: string
+  release_notes: string
+}
+
 declare global {
   interface Window {
     go: {
@@ -210,6 +218,8 @@ declare global {
           GetDiskList(): Promise<DiskInfo[]>
           ScanLargeFiles(root: string, minSizeMB: number): Promise<DiskScanResult>
           GetMemOptStats(): Promise<MemOptStats>
+          GetAppVersion(): Promise<string>
+          CheckUpdate(): Promise<UpdateInfo>
         }
       }
     }
@@ -258,4 +268,10 @@ export const api = {
 
   getMemOptStats: (): Promise<MemOptStats> =>
     window.go.app.App.GetMemOptStats(),
+
+  getAppVersion: (): Promise<string> =>
+    window.go.app.App.GetAppVersion(),
+
+  checkUpdate: (): Promise<UpdateInfo> =>
+    window.go.app.App.CheckUpdate(),
 }

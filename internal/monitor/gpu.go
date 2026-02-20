@@ -25,9 +25,24 @@ var integratedKeywords = []string{
 
 // GetGPUInfo 通过 WMI 查询显卡信息
 func GetGPUInfo() (*model.GPUResult, error) {
-	// 使用 PowerShell 查询 WMI
-	cmd := winapi.HiddenCmd("powershell", "-NoProfile", "-Command",
-		`Get-CimInstance Win32_VideoController | ForEach-Object { "$($_.Name)|$($_.AdapterRAM)|$($_.DriverVersion)|$($_.VideoModeDescription)" }`)
+	// AdapterRAM 是 uint32，超过 4GB 会溢出
+	// 优先从注册表 HardwareInformation.qwMemorySize 获取真实显存（uint64）
+	// 回退到 AdapterRAM
+	psScript := `
+$adapters = Get-CimInstance Win32_VideoController
+$regPaths = Get-ChildItem 'HKLM:\SYSTEM\CurrentControlSet\Control\Class\{4d36e968-e325-11ce-bfc1-08002be10318}' -ErrorAction SilentlyContinue |
+  Where-Object { $_.GetValue('DriverDesc') }
+foreach ($a in $adapters) {
+  $vram = [uint64]$a.AdapterRAM
+  foreach ($r in $regPaths) {
+    if ($r.GetValue('DriverDesc') -eq $a.Name) {
+      $qw = $r.GetValue('HardwareInformation.qwMemorySize')
+      if ($qw) { $vram = [uint64]$qw; break }
+    }
+  }
+  "$($a.Name)|$vram|$($a.DriverVersion)|$($a.VideoModeDescription)"
+}`
+	cmd := winapi.HiddenCmd("powershell", "-NoProfile", "-Command", psScript)
 	output, err := cmd.Output()
 	if err != nil {
 		return &model.GPUResult{}, nil

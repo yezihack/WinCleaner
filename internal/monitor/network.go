@@ -114,21 +114,27 @@ func toUTF16LEBase64(s string) string {
 
 // getProcessNetUsage 获取应用级网络流量（按应用名合并多个子进程）
 func getProcessNetUsage() []model.ProcessNetInfo {
-	// 使用 TAB 作为分隔符，PowerShell 中 [char]9 表示 TAB
-	psScript := "$sep = [char]9\n" +
-		"$pids = Get-NetTCPConnection -State Established,Listen -ErrorAction SilentlyContinue |\n" +
-		"  Select-Object -ExpandProperty OwningProcess -Unique\n" +
-		"foreach ($p_id in $pids) {\n" +
-		"  try {\n" +
-		"    $p = Get-CimInstance Win32_Process -Filter \"ProcessId=$p_id\" -ErrorAction SilentlyContinue\n" +
-		"    if ($p -and $p.Name -ne 'powershell.exe' -and $p.Name -ne 'conhost.exe') {\n" +
-		"      $n = $p.Name -replace '\\.exe$',''\n" +
-		"      $w = if ($p.WriteTransferCount) { $p.WriteTransferCount } else { 0 }\n" +
-		"      $r = if ($p.ReadTransferCount) { $p.ReadTransferCount } else { 0 }\n" +
-		"      \"$n$sep$w$sep$r\"\n" +
-		"    }\n" +
-		"  } catch {}\n" +
-		"}"
+	// 批量查询：先获取有网络连接的 PID，再一次性 WMI 查询所有进程 IO 计数器
+	psScript := `$sep = [char]9
+$pids = @(Get-NetTCPConnection -State Established,Listen -ErrorAction SilentlyContinue |
+  Select-Object -ExpandProperty OwningProcess -Unique |
+  Where-Object { $_ -ne 0 })
+if ($pids.Count -eq 0) { exit }
+$filter = ($pids | ForEach-Object { "ProcessId=$_" }) -join ' OR '
+$procs = Get-CimInstance Win32_Process -Filter $filter -ErrorAction SilentlyContinue |
+  Where-Object { $_.Name -notin @('powershell.exe','conhost.exe','System') }
+$grouped = $procs | Group-Object Name
+foreach ($g in $grouped) {
+  $name = $g.Name -replace '\.exe$',''
+  $cnt = $g.Count
+  $w = [uint64]0
+  $r = [uint64]0
+  foreach ($p in $g.Group) {
+    if ($p.WriteTransferCount) { $w += [uint64]$p.WriteTransferCount }
+    if ($p.ReadTransferCount) { $r += [uint64]$p.ReadTransferCount }
+  }
+  "$name$sep$cnt$sep$w$sep$r"
+}`
 
 	encoded := toUTF16LEBase64(psScript)
 	cmd := winapi.HiddenCmd("powershell", "-NoProfile", "-EncodedCommand", encoded)
@@ -137,7 +143,7 @@ func getProcessNetUsage() []model.ProcessNetInfo {
 		return nil
 	}
 
-	appMap := make(map[string]*model.ProcessNetInfo)
+	var result []model.ProcessNetInfo
 	lines := strings.Split(strings.TrimSpace(string(output)), "\n")
 
 	for _, line := range lines {
@@ -145,36 +151,30 @@ func getProcessNetUsage() []model.ProcessNetInfo {
 		if line == "" {
 			continue
 		}
-		parts := strings.SplitN(line, "\t", 3)
-		if len(parts) < 3 {
+		parts := strings.SplitN(line, "\t", 4)
+		if len(parts) < 4 {
 			continue
 		}
 
 		name := strings.TrimSpace(parts[0])
-		sent, _ := strconv.ParseUint(strings.TrimSpace(parts[1]), 10, 64)
-		recv, _ := strconv.ParseUint(strings.TrimSpace(parts[2]), 10, 64)
+		count, _ := strconv.Atoi(strings.TrimSpace(parts[1]))
+		sent, _ := strconv.ParseUint(strings.TrimSpace(parts[2]), 10, 64)
+		recv, _ := strconv.ParseUint(strings.TrimSpace(parts[3]), 10, 64)
 
-		if name == "" {
+		if name == "" || (sent == 0 && recv == 0) {
 			continue
 		}
 
-		if existing, ok := appMap[name]; ok {
-			existing.Sent += sent
-			existing.Recv += recv
-			existing.Count++
-		} else {
-			appMap[name] = &model.ProcessNetInfo{
-				Name:  name,
-				Count: 1,
-				Sent:  sent,
-				Recv:  recv,
-			}
+		if count == 0 {
+			count = 1
 		}
-	}
 
-	var result []model.ProcessNetInfo
-	for _, p := range appMap {
-		result = append(result, *p)
+		result = append(result, model.ProcessNetInfo{
+			Name:  name,
+			Count: count,
+			Sent:  sent,
+			Recv:  recv,
+		})
 	}
 	return result
 }
