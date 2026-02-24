@@ -281,11 +281,15 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.mem-card { text-align: center; min-height: 300px; }
+.mem-card { text-align: center; height: 100%; display: flex; flex-direction: column; }
+.mem-card :deep(.el-card__body) { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; }
 .stat-text { margin-top: 8px; color: #909399; font-size: 14px; }
 .stat-overview { text-align: left; }
-.stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; padding: 8px; }
+.stat-overview :deep(.el-card__body) { align-items: stretch; }
+.stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; padding: 8px; width: 100%; }
 .stat-item { text-align: center; }
 .stat-num { font-size: 20px; font-weight: 700; color: #409eff; }
 .stat-desc { font-size: 12px; color: #909399; margin-top: 4px; }
+.el-row { display: flex; flex-wrap: wrap; }
+.el-row > .el-col { display: flex; }
 </style>
