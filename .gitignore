@@ -1,5 +1,5 @@
 # Build output
-/build/bin/
+build/
 *.exe
 *.syso
 
@@ -9,27 +9,25 @@ frontend/dist/
 frontend/package.json.md5
 
 # Wails generated bindings
-frontend/wailsjs/go/
+wailsjs/
 
 # Go
 *.test
 *.out
+*.sum
 
 # IDE
 .vscode/
 .idea/
-*.swp
-*.swo
+*.[sw][wo]
 
 # OS
 Thumbs.db
 Desktop.ini
-.DS_Store
 
 # Runtime data
 data/
-*.json.bak
+*.bak
 
 # Installer output
-*.iss.bak
 Output/
