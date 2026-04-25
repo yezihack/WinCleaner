@@ -33,6 +33,11 @@ const router = createRouter({
       name: 'disk',
       component: () => import('@/views/Disk.vue'),
     },
+    {
+      path: '/port',
+      name: 'port',
+      component: () => import('@/views/Port.vue'),
+    },
   ],
 })
 

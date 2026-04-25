@@ -199,6 +199,20 @@ export interface UpdateInfo {
   release_notes: string
 }
 
+export interface PortInfo {
+  listen_addr: string
+  port: number
+  proto: string
+  pid: number
+  process_name: string
+  status: string
+}
+
+export interface PortScanResult {
+  ports: PortInfo[]
+  count: number
+}
+
 declare global {
   interface Window {
     go: {
@@ -220,6 +234,9 @@ declare global {
           GetMemOptStats(): Promise<MemOptStats>
           GetAppVersion(): Promise<string>
           CheckUpdate(): Promise<UpdateInfo>
+          GetPortList(port: number): Promise<PortInfo[]>
+          KillProcessesByPort(port: number): Promise<number>
+          GetListeningPorts(minPort: number): Promise<PortInfo[]>
         }
       }
     }
@@ -274,4 +291,13 @@ export const api = {
 
   checkUpdate: (): Promise<UpdateInfo> =>
     window.go.app.App.CheckUpdate(),
+
+  getPortList: (port: number): Promise<PortInfo[]> =>
+    window.go.app.App.GetPortList(port),
+
+  killProcessesByPort: (port: number): Promise<number> =>
+    window.go.app.App.KillProcessesByPort(port),
+
+  getListeningPorts: (minPort: number = 1000): Promise<PortInfo[]> =>
+    window.go.app.App.GetListeningPorts(minPort),
 }

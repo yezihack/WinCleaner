@@ -12,10 +12,11 @@ import (
 	"win-cleaner/internal/memory"
 	"win-cleaner/internal/model"
 	"win-cleaner/internal/monitor"
+	"win-cleaner/pkg/winapi"
 )
 
 // AppVersion 当前应用版本（构建时通过 -ldflags 注入，默认 dev）
-var AppVersion = "0.1.1"
+var AppVersion = "0.2.0"
 
 // App Wails 应用主结构
 type App struct {
@@ -76,13 +77,32 @@ func (a *App) CleanJunk(categoryNames []string) model.CleanResult {
 		nameSet[name] = true
 	}
 
+	hasRecycleBin := false
 	for _, result := range a.scanResults {
 		if nameSet[result.Category] {
-			items = append(items, result.Items...)
+			if result.Category == "回收站" {
+				hasRecycleBin = true
+			} else {
+				items = append(items, result.Items...)
+			}
 		}
 	}
 
 	result := cleaner.Clean(items)
+
+	// 回收站单独处理
+	if hasRecycleBin {
+		if err := winapi.EmptyRecycleBin(); err == nil {
+			// 获取清空前的大小
+			for _, r := range a.scanResults {
+				if r.Category == "回收站" {
+					result.FreedSize += r.Size
+					result.CleanedCount += r.Count
+					break
+				}
+			}
+		}
+	}
 
 	// 记录清理历史
 	_ = cleaner.RecordClean(result)
@@ -158,6 +178,21 @@ func (a *App) GetMemOptStats() (*model.MemOptStats, error) {
 // GetAppVersion 获取当前应用版本
 func (a *App) GetAppVersion() string {
 	return AppVersion
+}
+
+// GetPortList 获取指定端口的进程列表
+func (a *App) GetPortList(port uint16) ([]model.PortInfo, error) {
+	return monitor.GetPortListSimple(port)
+}
+
+// KillProcessesByPort 结束指定端口的所有进程
+func (a *App) KillProcessesByPort(port uint16) (int, error) {
+	return monitor.KillProcessesByPort(port)
+}
+
+// GetListeningPorts 获取所有监听端口（默认 1000 以上）
+func (a *App) GetListeningPorts(minPort uint16) ([]model.PortInfo, error) {
+	return monitor.GetListeningPorts(minPort)
 }
 
 // CheckUpdate 检查 GitHub Releases 是否有新版本

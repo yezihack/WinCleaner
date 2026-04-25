@@ -14,7 +14,6 @@ wailsjs/
 # Go
 *.test
 *.out
-*.sum
 
 # IDE
 .vscode/

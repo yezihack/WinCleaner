@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"win-cleaner/internal/model"
+	"win-cleaner/pkg/winapi"
 )
 
 // Scan 扫描所有分类的垃圾文件
@@ -15,18 +16,26 @@ func Scan(categories []JunkCategory) []model.ScanResult {
 			Category: cat.Name,
 		}
 
-		for _, dir := range cat.Paths {
-			if dir == "" {
-				continue
+		if cat.IsRecycleBin {
+			info, err := winapi.GetRecycleBinInfo()
+			if err == nil && info.SizeBytes > 0 {
+				result.Size = info.SizeBytes
+				result.Count = int(info.ItemCount)
 			}
-			items := scanDir(dir, cat.Glob, cat.Name)
-			result.Items = append(result.Items, items...)
+		} else {
+			for _, dir := range cat.Paths {
+				if dir == "" {
+					continue
+				}
+				items := scanDir(dir, cat.Glob, cat.Name)
+				result.Items = append(result.Items, items...)
+			}
+			for _, item := range result.Items {
+				result.Size += item.Size
+			}
+			result.Count = len(result.Items)
 		}
 
-		for _, item := range result.Items {
-			result.Size += item.Size
-		}
-		result.Count = len(result.Items)
 		results = append(results, result)
 	}
 

@@ -255,3 +255,19 @@ type MemOptStats struct {
 	TotalFreedMB  float64             `json:"total_freed_mb"`
 	TotalCount    int                 `json:"total_count"`
 }
+
+// PortInfo 端口信息
+type PortInfo struct {
+	ListenAddr  string `json:"listen_addr"`  // 监听地址，如 "0.0.0.0:8080"
+	Port        uint16 `json:"port"`         // 端口号
+	Proto       string `json:"proto"`        // 协议类型 "tcp" / "udp"
+	PID         int32  `json:"pid"`          // 进程ID
+	ProcessName string `json:"process_name"` // 进程名
+	Status      string `json:"status"`       // 连接状态
+}
+
+// PortScanResult 端口扫描结果
+type PortScanResult struct {
+	Ports []PortInfo `json:"ports"`
+	Count int        `json:"count"`
+}

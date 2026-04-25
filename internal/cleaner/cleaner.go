@@ -10,6 +10,7 @@ type JunkCategory struct {
 	Name  string
 	Paths []string // 支持环境变量
 	Glob  string   // 文件匹配模式，空则匹配所有
+	IsRecycleBin bool // 是否为回收站
 }
 
 // DefaultCategories 默认扫描分类
@@ -46,7 +47,8 @@ func DefaultCategories() []JunkCategory {
 		},
 		{
 			Name:  "回收站",
-			Paths: []string{"C:\\$Recycle.Bin"},
+			Paths: []string{},
+			IsRecycleBin: true,
 		},
 		{
 			Name:  "Windows 预读取",
