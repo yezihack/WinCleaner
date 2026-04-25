@@ -39,6 +39,8 @@ jobs:
 
       - name: Setup application icon
         run: |
+          New-Item -ItemType Directory -Force -Path "build/windows" | Out-Null
+          New-Item -ItemType Directory -Force -Path "build" | Out-Null
           Copy-Item "favicon_io/favicon.ico" "build/windows/icon.ico" -Force
           Copy-Item "favicon_io/android-chrome-512x512.png" "build/appicon.png" -Force
         shell: pwsh
