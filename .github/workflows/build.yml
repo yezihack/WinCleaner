@@ -3,7 +3,7 @@ name: Build and Release
 on:
   push:
     branches:
-      - main # dev
+      - main
     tags:
       - 'v*'
   workflow_dispatch:
@@ -13,6 +13,16 @@ permissions:
 
 jobs:
   build-windows:
+    strategy:
+      matrix:
+        platform: [windows/amd64, windows/arm64]
+        include:
+          - platform: windows/amd64
+            arch: x64
+            output_name: WinCleaner-windows-amd64
+          - platform: windows/arm64
+            arch: arm64
+            output_name: WinCleaner-windows-arm64
     runs-on: windows-latest
 
     steps:
@@ -59,13 +69,13 @@ jobs:
         run: |
           $version = "${{ steps.get_version.outputs.VERSION }}"
           if ($version -eq "dev") { $version = "0.0.0-dev" }
-          wails build -platform windows/amd64 -ldflags "-X 'win-cleaner/internal/app.AppVersion=$version'"
+          wails build -platform ${{ matrix.platform }} -ldflags "-X 'win-cleaner/internal/app.AppVersion=$version'"
         shell: pwsh
 
       - name: Create Windows ZIP
         run: |
           cd build/bin
-          Compress-Archive -Path WinCleaner.exe -DestinationPath ../../WinCleaner-windows-amd64.zip
+          Compress-Archive -Path WinCleaner.exe -DestinationPath ../../${{ matrix.output_name }}.zip
         shell: pwsh
 
       - name: Download Inno Setup Chinese language file
@@ -77,15 +87,16 @@ jobs:
       - name: Build Installer with Inno Setup
         run: |
           iscc /DMyAppVersion="${{ steps.get_version.outputs.VERSION }}" build/installer.iss
-        shell: cmd
+          Move-Item -Force "build\Output\WinCleaner-Setup-${{ steps.get_version.outputs.VERSION }}.exe" "${{ matrix.output_name }}-Setup.exe"
+        shell: pwsh
 
       - name: Upload Windows artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: windows-build-${{ github.sha }}
+          name: windows-build-${{ matrix.arch }}-${{ github.sha }}
           path: |
-            WinCleaner-windows-amd64.zip
-            WinCleaner-Setup-*.exe
+            ${{ matrix.output_name }}.zip
+            ${{ matrix.output_name }}-Setup.exe
           retention-days: 5
 
   release:
@@ -95,29 +106,38 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Get version from tag
         id: get_version
         run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
 
-      - name: Download Windows artifacts
+      - name: Download Windows x64 artifacts
         uses: actions/download-artifact@v4
         with:
-          name: windows-build-${{ github.sha }}
+          name: windows-build-x64-${{ github.sha }}
           path: artifacts
 
+      - name: Download Windows arm64 artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-build-arm64-${{ github.sha }}
+          path: artifacts
+
+      - name: List artifacts
+        run: ls -la artifacts/
+
       - name: Create Release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           name: Win Cleaner v${{ steps.get_version.outputs.VERSION }}
           body: |
-            ## 🧹 Win Cleaner v${{ steps.get_version.outputs.VERSION }}
-            
+            ## ⚡ Win Cleaner v${{ steps.get_version.outputs.VERSION }}
+
             Windows 系统垃圾清理与优化工具
-            
+
             ### ✨ 功能特性
-            
+
             - 🧹 **垃圾清理**: 扫描并清理 7 类系统垃圾（临时文件、更新缓存、缩略图、日志、浏览器缓存、回收站、预读取）
             - 🧠 **内存优化**: 一键收缩进程工作集，释放物理内存
             - 📊 **系统概览**: CPU、内存、磁盘使用率，显卡信息检测
@@ -125,18 +145,25 @@ jobs:
             - 🌐 **流量监控**: 实时网速、进程网络使用、历史流量统计图表
             - 💾 **磁盘管理**: 分区空间概览、大文件扫描
             - 📈 **历史图表**: 清理记录、优化记录、流量统计的可视化图表
-            
+            - 🔌 **端口管理**: 查看监听端口及关联进程
+
             ### 💾 下载
-            
-            - `WinCleaner-Setup-*.exe` - 安装程序（推荐，含桌面快捷方式和卸载）
-            - `WinCleaner-windows-amd64.zip` - 免安装版，解压即用
-            
+
+            **x64 架构 (Intel/AMD 处理器)**
+
+            - `WinCleaner-windows-amd64-Setup.exe` - 安装程序（推荐）
+            - `WinCleaner-windows-amd64.zip` - 免安装版
+
+            **ARM64 架构 (Windows on ARM)**
+
+            - `WinCleaner-windows-arm64-Setup.exe` - 安装程序（推荐）
+            - `WinCleaner-windows-arm64.zip` - 免安装版
+
             ### 📝 技术栈
-            
+
             - Wails v2 (Go + Vue3 + Element Plus + ECharts)
             - 纯本地运行，不上传任何数据
-          files: |
-            artifacts/*
+          files: artifacts/*
           draft: false
           prerelease: false
           generate_release_notes: true
