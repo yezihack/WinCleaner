@@ -87,7 +87,9 @@ jobs:
       - name: Build Installer with Inno Setup
         run: |
           iscc /DMyAppVersion="${{ steps.get_version.outputs.VERSION }}" build/installer.iss
-          Move-Item -Force "build\Output\WinCleaner-Setup-${{ steps.get_version.outputs.VERSION }}.exe" "${{ matrix.output_name }}-Setup.exe"
+          if (Test-Path "build\Output\WinCleaner-Setup-${{ steps.get_version.outputs.VERSION }}.exe") {
+            Move-Item -Force "build\Output\WinCleaner-Setup-${{ steps.get_version.outputs.VERSION }}.exe" "${{ matrix.output_name }}-Setup.exe"
+          }
         shell: pwsh
 
       - name: Upload Windows artifacts

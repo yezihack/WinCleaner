@@ -1,10 +1,9 @@
 ; Inno Setup Script for WinCleaner
 ; 需要 Inno Setup 6.x
 
-#define MyAppVersion = "MyAppVersion"
-#define MyAppName = "WinCleaner"
-#define MyAppExeName = "WinCleaner.exe"
-#define MyAppURL = "https://github.com/yezihack/WinCleaner"
+#define MyAppName "WinCleaner"
+#define MyAppExeName "WinCleaner.exe"
+#define MyAppURL "https://github.com/yezihack/WinCleaner"
 
 [Setup]
 AppId={{A1B2C3D4-E5F6-7890-ABCD-EF1234567890}
@@ -18,7 +17,7 @@ AppUpdatesURL={#MyAppURL}
 DefaultDirName={autopf}\{#MyAppName}
 DefaultGroupName={#MyAppName}
 AllowNoIcons=yes
-OutputDir=..\Output
+OutputDir=Output
 OutputBaseFilename=WinCleaner-Setup-{#MyAppVersion}
 Compression=lzma2/ultra64
 SolidCompression=yes
@@ -27,9 +26,6 @@ PrivilegesRequired=admin
 ArchitecturesAllowed=x64
 ArchitecturesInstallIn64BitMode=x64
 DisableProgramGroupPage=yes
-LicenseFile=
-InfoBeforeFile=
-InfoAfterFile=
 
 [Languages]
 Name: "chinesesimplified"; MessagesFile: "compiler:Languages\ChineseSimplified.isl"
